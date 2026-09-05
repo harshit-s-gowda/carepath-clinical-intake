@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/clinical-case-taking/"
+title = "CarePath Clinical Intake"
+description = "A mobile-first clinical intake experience that turns patient waiting time into a structured, consent-led case sheet for care teams, with multilingual support, adaptive questions, document review, red-flag triage, and clinician verification."
+version = "1.0.0"
+id = "artifacts/clinical-case-taking"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/clinical-case-taking/" ]
+localPort = 24550
+
+[services.development]
+run = "pnpm --filter @workspace/clinical-case-taking run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/clinical-case-taking", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/clinical-case-taking", "run", "serve" ]
+
+[services.env]
+PORT = "24550"
+BASE_PATH = "/clinical-case-taking/"
