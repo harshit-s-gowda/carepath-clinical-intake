@@ -1,0 +1,378 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.2.0
+  description: CarePath clinical intake API. Demo responses use synthetic data.
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: cases
+  - name: patients
+  - name: opd
+  - name: documents
+  - name: ai
+  - name: red-flags
+  - name: admin
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /opd/queue:
+    get:
+      operationId: getOpdQueue
+      tags: [opd]
+      summary: Get the clinician queue
+      responses:
+        "200":
+          description: Current queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QueueItem"
+  /patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get a patient by id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Patient record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /cases/{id}:
+    get:
+      operationId: getCase
+      tags: [cases]
+      summary: Get a structured case
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Structured case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicalCase"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /cases/{id}/submit:
+    post:
+      operationId: submitCase
+      tags: [cases]
+      summary: Submit a case to the care queue
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseSubmission"
+      responses:
+        "200":
+          description: Submitted case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicalCase"
+  /cases/{id}/finalize:
+    post:
+      operationId: finalizeCase
+      tags: [cases]
+      summary: Finalize a clinician-verified case
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseFinalization"
+      responses:
+        "200":
+          description: Finalized case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicalCase"
+        "409":
+          description: Case has not been verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /documents/{id}/process:
+    post:
+      operationId: processDocument
+      tags: [documents]
+      summary: Process a document through the OCR abstraction
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Processing result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentProcessing"
+  /documents/{id}/extraction:
+    get:
+      operationId: getDocumentExtraction
+      tags: [documents]
+      summary: Read structured document extraction
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Extracted values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentExtraction"
+  /ai/summarize:
+    post:
+      operationId: summarizeCase
+      tags: [ai]
+      summary: Generate a structured, non-diagnostic case summary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummaryInput"
+      responses:
+        "200":
+          description: Structured summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseSummary"
+  /red-flags/evaluate:
+    post:
+      operationId: evaluateRedFlags
+      tags: [red-flags]
+      summary: Evaluate configurable symptom rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedFlagInput"
+      responses:
+        "200":
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedFlagEvaluation"
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get privacy-preserving system counts
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    Patient:
+      type: object
+      required: [id, name, age, gender]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        age: { type: number }
+        gender: { type: string }
+        abhaId: { type: ["string", "null"] }
+        token: { type: ["string", "null"] }
+    QueueItem:
+      type: object
+      required: [id, token, patientId, patientName, detail, status, priority]
+      properties:
+        id: { type: string }
+        token: { type: string }
+        patientId: { type: string }
+        patientName: { type: string }
+        detail: { type: string }
+        status: { type: string, enum: [Waiting, "In Progress", Priority, Completed, Cancelled] }
+        priority: { type: string, enum: [Normal, Review, High] }
+    TimelineEvent:
+      type: object
+      required: [id, date, datePrecision, title, description, eventType, source, confidence]
+      properties:
+        id: { type: string }
+        date: { type: string }
+        datePrecision: { type: string, enum: [exact, month, year, approximate] }
+        title: { type: string }
+        description: { type: string }
+        eventType: { type: string }
+        source: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+    RedFlag:
+      type: object
+      required: [alertId, ruleId, severity, reason, triggeredSymptoms, status]
+      properties:
+        alertId: { type: string }
+        ruleId: { type: string }
+        severity: { type: string, enum: [Normal, Review, High] }
+        reason: { type: string }
+        triggeredSymptoms:
+          type: array
+          items: { type: string }
+        status: { type: string, enum: [Open, Acknowledged, Resolved] }
+    ClinicalCase:
+      type: object
+      required: [id, patient, status, chiefComplaint, summary, timeline, redFlags, verified]
+      properties:
+        id: { type: string }
+        patient: { $ref: "#/components/schemas/Patient" }
+        status: { type: string, enum: [Draft, Submitted, In Progress, Finalized] }
+        chiefComplaint: { type: string }
+        duration: { type: string }
+        summary: { $ref: "#/components/schemas/CaseSummary" }
+        timeline:
+          type: array
+          items: { $ref: "#/components/schemas/TimelineEvent" }
+        redFlags:
+          type: array
+          items: { $ref: "#/components/schemas/RedFlag" }
+        verified: { type: boolean }
+        doctorNotes: { type: string }
+    CaseSummary:
+      type: object
+      required: [text, sourceLabel, disclaimer]
+      properties:
+        text: { type: string }
+        sourceLabel: { type: string }
+        disclaimer: { type: string }
+    CaseSubmission:
+      type: object
+      required: [patientName, chiefComplaint, duration]
+      properties:
+        patientName: { type: string, minLength: 1 }
+        chiefComplaint: { type: string, minLength: 1 }
+        duration: { type: string, minLength: 1 }
+    CaseFinalization:
+      type: object
+      required: [verified]
+      properties:
+        verified: { type: boolean }
+        doctorNotes: { type: string }
+    SummaryInput:
+      type: object
+      required: [patientName, age, gender, chiefComplaint, duration]
+      properties:
+        patientName: { type: string }
+        age: { type: number }
+        gender: { type: string }
+        chiefComplaint: { type: string }
+        duration: { type: string }
+        associatedSymptoms:
+          type: array
+          items: { type: string }
+        pastHistory:
+          type: array
+          items: { type: string }
+        medications:
+          type: array
+          items: { type: string }
+    RedFlagInput:
+      type: object
+      required: [symptoms]
+      properties:
+        symptoms:
+          type: array
+          items: { type: string }
+    RedFlagEvaluation:
+      type: object
+      required: [priority, alerts]
+      properties:
+        priority: { type: string, enum: [Normal, Review, High] }
+        alerts:
+          type: array
+          items: { $ref: "#/components/schemas/RedFlag" }
+    DocumentProcessing:
+      type: object
+      required: [id, status, message]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [Queued, Processing, Completed, Failed] }
+        message: { type: string }
+    DocumentExtraction:
+      type: object
+      required: [documentId, sourceName, confidence, fields]
+      properties:
+        documentId: { type: string }
+        sourceName: { type: string }
+        confidence: { type: number }
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedField"
+    ExtractedField:
+      type: object
+      required: [name, value, verificationStatus]
+      properties:
+        name: { type: string }
+        value: { type: string }
+        unit: { type: ["string", "null"] }
+        verificationStatus: { type: string, enum: [Unverified, Verified, Rejected] }
+    AdminStats:
+      type: object
+      required: [patientsRegisteredToday, casesCompleted, waitingPatients, highPriorityPatients, documentsProcessed]
+      properties:
+        patientsRegisteredToday: { type: number }
+        casesCompleted: { type: number }
+        waitingPatients: { type: number }
+        highPriorityPatients: { type: number }
+        documentsProcessed: { type: number }
