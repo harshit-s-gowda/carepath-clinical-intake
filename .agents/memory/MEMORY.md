@@ -1,0 +1,1 @@
+- [API schema generator compatibility](api-schema-generator-compatibility.md) — OpenAPI integer formats can generate unsupported Zod helpers in this workspace.
